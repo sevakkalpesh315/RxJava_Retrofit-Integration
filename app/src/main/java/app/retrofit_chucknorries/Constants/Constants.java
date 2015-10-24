@@ -5,6 +5,6 @@ package app.retrofit_chucknorries.Constants;
  */
 public class Constants {
 //BASE URL LINK:JENKINS DEMO
-    public static final String BASE_URL="http://api.icndb.com/jokes";
+    public static final String BASE_URL="http://api.icndb.com/jokes;
 
 }
