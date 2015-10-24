@@ -19,45 +19,32 @@ import app.retrofit_chucknorries.model.JokesModel;
 import app.retrofit_chucknorries.model.Value;
 import app.retrofit_chucknorries.service.IJokes;
 import retrofit.RestAdapter;
+import rx.Subscription;
 import rx.android.schedulers.AndroidSchedulers;
+import rx.functions.Action0;
 import rx.functions.Action1;
 
 public class MainActivity extends AppCompatActivity {
     private ProgressDialog pDialog;
     private RecyclerView mRecyclerView;
-
+    IJokes apiJokes;
     private JokesAdapter mAdapter;
     private List<Value> mJokestList;
-
+    private Subscription  resumeSub;
 
     @Override
-    protected void onCreate(Bundle savedInstanceState) {
-        super.onCreate(savedInstanceState);
-        setContentView(R.layout.recycler_main);
-      //  final OkHttpClient okHttpClient = new OkHttpClient();
-       // okHttpClient.setReadTimeout(60, TimeUnit.SECONDS);
-       // okHttpClient.setConnectTimeout(60, TimeUnit.SECONDS);
-        pDialog = new ProgressDialog(this);
-
-        // Showing progress dialog before making http request
-        pDialog.setMessage("Loading...");
-        pDialog.show();
-        mRecyclerView = (RecyclerView)findViewById(R.id.list);
-        mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        mRecyclerView.setItemAnimator(new DefaultItemAnimator());
-
-
-        RestAdapter adapterJokes= new RestAdapter.Builder()
-                .setEndpoint(Constants.BASE_URL)
-                .setLogLevel(RestAdapter.LogLevel.FULL)
-               // .setClient(new OkClient(okHttpClient))
-                .build();
-
-        IJokes apiJokes= adapterJokes.create(IJokes.class);
-        apiJokes.getJokes()
+    protected void onResume() {
+        super.onResume();
+        resumeSub= apiJokes.getJokes()
                 .cache()
                 .timeout(5000, TimeUnit.MILLISECONDS)
                 .retry(1)
+                .doOnUnsubscribe(new Action0() {
+                    @Override
+                    public void call() {
+                        Log.d(getClass().getName(), "Called unsubscribe OnPause()");
+                    }
+                })
                 .observeOn(AndroidSchedulers.mainThread())
                 .subscribe(new Action1<JokesModel>() {
                                @Override
@@ -75,6 +62,36 @@ public class MainActivity extends AppCompatActivity {
                                }
                            }
                 );
+    }
+    private void createGithubClient() {
+        if (apiJokes == null) {
+            apiJokes = new RestAdapter.Builder()
+                    .setEndpoint(Constants.BASE_URL)
+                    .setLogLevel(RestAdapter.LogLevel.FULL)
+                            // .setClient(new OkClient(okHttpClient))
+                    .build()
+                    .create(IJokes.class);
+        }
+    }
+    @Override
+    protected void onCreate(Bundle savedInstanceState) {
+        super.onCreate(savedInstanceState);
+        setContentView(R.layout.recycler_main);
+      //  final OkHttpClient okHttpClient = new OkHttpClient();
+       // okHttpClient.setReadTimeout(60, TimeUnit.SECONDS);
+       // okHttpClient.setConnectTimeout(60, TimeUnit.SECONDS);
+        pDialog = new ProgressDialog(this);
+
+        // Showing progress dialog before making http request
+        pDialog.setMessage("Loading...");
+        pDialog.show();
+        mRecyclerView = (RecyclerView)findViewById(R.id.list);
+        mRecyclerView.setLayoutManager(new LinearLayoutManager(this));
+        mRecyclerView.setItemAnimator(new DefaultItemAnimator());
+
+
+        createGithubClient();
+
     /*    apiJokes.getJokes(new Callback<JokesModel>() {
             @Override
             public void success(JokesModel jokesModel, Response response) {
@@ -106,6 +123,12 @@ public class MainActivity extends AppCompatActivity {
             pDialog.dismiss();
             pDialog = null;
         }
+    }
+    @Override
+    protected void onPause() {
+        super.onPause();
+        Log.d(getClass().getName(), "Called unsubscribe OnPause() done");
+        resumeSub.unsubscribe();
     }
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
